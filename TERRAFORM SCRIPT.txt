@@ -1,0 +1,105 @@
+                                              TERRAFORM
+
+TERRAFORM: INfrastructure as a code
+            Terraform can build the infrastructure on cloud service providers such as AWS, Microsoft Azure and Google cloud 
+
+//CREATE PROVIDERS
+
+provider "aws"{
+    region = "ap-south-1"
+}
+
+//CREATE VPC
+
+resource "aws_vpc" "DEMO" {
+  cidr_block = "10.1.0.0/16"
+}
+
+//CREATE SUBNET
+
+resource "aws_subnet" "public-1" {
+  vpc_id     = aws_vpc.DEMO.id
+  cidr_block = "10.1.1.0/24"
+  map_public_ip_on_lanuch = "true"
+
+  tags = {
+    Name = "public-1"
+  }
+}
+ 
+//CREATE INTERNET GATEWAY
+
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.DEMO.id
+
+  tags = {
+    Name = "igw"
+  }
+}
+
+//CREATE ROUTE TABLE
+
+resource "aws_route_table" "demo-rt" {
+  vpc_id = aws_vpc.DEMO.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+
+  tags = {
+    Name = "demo-rt"
+  }
+}
+
+//CREATE ROUTE TABLE ASSOCIATION
+
+resource "aws_route_table_association" "dem0-rt-1" {
+  subnet_id      = aws_subnet.public-1.id
+  route_table_id = aws_route_table.demo-rt.id
+}
+
+//CREATE SECURITY GROUP
+
+resource "aws_security_group" "demo-sg" {
+  name        = "demo-sg"
+  vpc_id      = aws_vpc.DEMO.id
+
+//OUTBOUNDRULES
+
+  ingress {
+    
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = [aws_vpc.DEMO.cidr_block]
+    ipv6_cidr_blocks = ["::/0"]
+    
+    
+  }
+
+// INBOUNDRULES
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name = "demo-sg"
+  }
+}
+
+//CREATE EC2 INSTANCE
+
+resource "aws_instance" "demo" {
+  ami           = "ami-0f8ca728008ff5af4"
+  key_name      = "devops"
+  instance_type = "t2.micro"
+subnet_id     =   aws_subnet.public-1.id
+vpc_security_group_ids = [aws_security_group.demo-sg.id]
+
+}
+
